@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resume Tailor</title>
+<style>
+  :root {
+    --bg: #f4f1ea; --card: #fffdf7; --ink: #2b2d3a; --muted: #767a88;
+    --accent: #4f6ad8; --accent-ink: #fff; --ring: #e2e0d6;
+    --good: #2e8b57; --warn: #c08a2e; --bad: #c0492e;
+    --chip: #eef0fb; --chip-ink: #3a46a0; --chip-miss: #f6ece0; --chip-miss-ink: #9a6a1e;
+    --soft: #f7f5ee;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15161b; --card: #1e2027; --ink: #e8e9f0; --muted: #969aa8;
+      --accent: #7f93ec; --accent-ink: #10131f; --ring: #2d3038;
+      --good: #6fcf97; --warn: #e0b267; --bad: #e08572;
+      --chip: #262a3f; --chip-ink: #aeb8f0; --chip-miss: #342c20; --chip-miss-ink: #e0b267;
+      --soft: #23252d;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15161b; --card: #1e2027; --ink: #e8e9f0; --muted: #969aa8;
+    --accent: #7f93ec; --accent-ink: #10131f; --ring: #2d3038;
+    --good: #6fcf97; --warn: #e0b267; --bad: #e08572;
+    --chip: #262a3f; --chip-ink: #aeb8f0; --chip-miss: #342c20; --chip-miss-ink: #e0b267;
+    --soft: #23252d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex; justify-content: center; padding: 32px 16px;
+  }
+  main { width: 100%; max-width: 860px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: .95rem; }
+  .card { background: var(--card); border-radius: 16px; padding: 22px; box-shadow: 0 1px 3px rgb(0 0 0 / .08); margin-bottom: 16px; }
+  label { display: block; font-weight: 600; font-size: .9rem; margin: 0 0 6px; }
+  .hint { font-weight: 400; color: var(--muted); font-size: .82rem; }
+  textarea, input[type=text], input[type=password], select {
+    width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--ring);
+    background: var(--soft); color: var(--ink); font: inherit;
+  }
+  textarea { resize: vertical; min-height: 150px; font-size: .92rem; line-height: 1.45; }
+  .row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .row > div { flex: 1 1 320px; }
+  .settings { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
+  .settings > div { flex: 1 1 180px; }
+  button {
+    border: 0; border-radius: 10px; padding: 11px 18px; font: inherit; font-weight: 600;
+    background: var(--accent); color: var(--accent-ink); cursor: pointer;
+  }
+  button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--ring); }
+  button:disabled { opacity: .55; cursor: default; }
+  .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+  .note { font-size: .82rem; color: var(--muted); margin-top: 10px; }
+  .err { color: var(--bad); font-size: .9rem; margin-top: 10px; white-space: pre-wrap; }
+  /* results */
+  #out { display: none; }
+  .score-wrap { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .ring { position: relative; width: 96px; height: 96px; flex: none; }
+  .ring svg { transform: rotate(-90deg); }
+  .ring .pct { position: absolute; inset: 0; display: grid; place-items: center; font-size: 1.5rem; font-weight: 700; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .chip { background: var(--chip); color: var(--chip-ink); border-radius: 999px; padding: 4px 11px; font-size: .82rem; font-weight: 600; }
+  .chip.miss { background: var(--chip-miss); color: var(--chip-miss-ink); }
+  h2 { font-size: 1.05rem; margin: 22px 0 8px; }
+  h2:first-child { margin-top: 0; }
+  .rw { border: 1px solid var(--ring); border-radius: 12px; padding: 14px; margin-bottom: 12px; background: var(--soft); }
+  .rw .relev { font-size: .78rem; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 8px; }
+  .rw .orig { color: var(--muted); font-size: .9rem; }
+  .rw .orig b, .rw .new b { font-weight: 700; }
+  .rw .new { margin-top: 8px; display: flex; gap: 8px; align-items: start; }
+  .rw .new .txt { flex: 1; }
+  .rw .arrow { color: var(--muted); }
+  .copybtn { font-size: .75rem; padding: 4px 9px; border-radius: 7px; background: transparent; color: var(--accent); border: 1px solid var(--ring); }
+  .src { font-size: .78rem; color: var(--muted); margin-top: 7px; font-style: italic; }
+  .rw.on { border-color: var(--accent); }
+  .rw .head { display: flex; align-items: start; gap: 8px; }
+  .rw .head input[type=checkbox] { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--accent); flex: none; }
+  .rw .head .relev { margin-bottom: 0; }
+  .additem { border: 1px solid var(--ring); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; background: var(--soft); }
+  .additem .term { font-weight: 600; font-size: .92rem; margin-bottom: 7px; }
+  .additem .term.miss::before { content: "◇ "; color: var(--warn); }
+  .additem textarea { min-height: 54px; font-size: .88rem; }
+  .additem .q { font-size: .8rem; color: var(--muted); margin-bottom: 5px; }
+  ul.clean { margin: 6px 0; padding-left: 20px; }
+  ul.clean li { margin-bottom: 6px; }
+  .gapbox { border-left: 3px solid var(--warn); padding-left: 12px; }
+  .honestbox { border-left: 3px solid var(--good); padding-left: 12px; }
+  details summary { cursor: pointer; font-weight: 600; font-size: .9rem; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .link { color: var(--accent); text-decoration: none; font-size: .85rem; }
+  .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: s .7s linear infinite; vertical-align: -2px; }
+  @keyframes s { to { transform: rotate(360deg); } }
+</style>
+<script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+</head>
+<body>
+<main>
+  <div class="topbar">
+    <div>
+      <h1>Resume Tailor</h1>
+      <p class="sub" style="margin:0">Match your resume to a job ad — honestly. No invented facts.</p>
+    </div>
+    <a class="link" href="../">← Focus Garden</a>
+  </div>
+
+  <!-- Settings -->
+  <div class="card">
+    <div class="settings">
+      <div>
+        <label for="key">Claude API key <span class="hint">(stored only in this browser)</span></label>
+        <input type="password" id="key" placeholder="sk-ant-..." autocomplete="off">
+      </div>
+      <div style="flex:0 1 200px">
+        <label for="model">Model</label>
+        <select id="model">
+          <option value="claude-opus-5-5">Opus 5.5 — best</option>
+          <option value="claude-sonnet-5-5">Sonnet 5.5 — cheaper</option>
+          <option value="claude-haiku-5-5">Haiku 5.5 — cheapest</option>
+        </select>
+      </div>
+    </div>
+    <p class="note">Get a key at <a class="link" href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>. It stays in your browser's local storage and is sent only to Anthropic's API — never committed to this site or shared.</p>
+  </div>
+
+  <!-- Inputs -->
+  <div class="card">
+    <div class="row">
+      <div>
+        <label for="resume">Your résumé <span class="hint">(paste the full text)</span></label>
+        <textarea id="resume" placeholder="Paste your current résumé here — experience, bullets, skills, education…"></textarea>
+      </div>
+      <div>
+        <label for="company">Company <span class="hint">(optional)</span></label>
+        <input type="text" id="company" placeholder="e.g. Acme Inc. — leave blank if you don't know" style="margin-bottom:10px">
+        <label for="job">Job description <span class="hint">(no link needed — just paste the text)</span></label>
+        <textarea id="job" placeholder="Paste the job description here. A LinkedIn link isn't needed — copy the text from the posting, an email, a PDF, anywhere."></textarea>
+      </div>
+    </div>
+    <div class="bar" style="margin-top:14px">
+      <button id="go">Tailor my résumé</button>
+      <button class="ghost" id="clear">Clear</button>
+      <span id="status" class="note" style="margin:0"></span>
+    </div>
+    <div id="err" class="err"></div>
+  </div>
+
+  <!-- Results -->
+  <div class="card" id="out">
+    <h2>Match</h2>
+    <div class="score-wrap">
+      <div class="ring">
+        <svg width="96" height="96" viewBox="0 0 96 96">
+          <circle cx="48" cy="48" r="42" fill="none" stroke="var(--ring)" stroke-width="10"/>
+          <circle id="ringfg" cx="48" cy="48" r="42" fill="none" stroke="var(--accent)" stroke-width="10" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="264"/>
+        </svg>
+        <div class="pct" id="pct">0%</div>
+      </div>
+      <div style="flex:1 1 300px">
+        <div id="summary" style="font-size:.95rem"></div>
+      </div>
+    </div>
+
+    <h2>Keywords you already match</h2>
+    <div class="chips" id="matched"></div>
+
+    <h2>Honest rewrites of your real bullets</h2>
+    <p class="note" style="margin-top:-2px">Check the ones you want to keep, then copy them. Each is reworded from a line you actually wrote (shown in grey) — same facts, the ad's language.</p>
+    <div id="rewrites"></div>
+    <div class="bar" id="selbar" style="display:none; margin-top:4px">
+      <button id="copysel">Copy selected bullets</button>
+      <span class="note" id="selcount" style="margin:0"></span>
+    </div>
+
+    <h2>Keywords &amp; experience the ad wants that aren't in your résumé</h2>
+    <p class="note" style="margin-top:-2px">If you <b>actually have</b> one of these and just forgot to list it, describe it in the box below it. Then re-analyze — the tool will turn your real note into an honest bullet. Leave blank anything you don't have.</p>
+    <div id="missing"></div>
+
+    <h2>Gaps — requirements your résumé doesn't support</h2>
+    <div class="gapbox"><div id="gaps"></div></div>
+
+    <div class="bar" style="margin-top:16px">
+      <button id="reanalyze" class="ghost">↻ Re-analyze with what I added</button>
+      <span id="restatus" class="note" style="margin:0"></span>
+    </div>
+
+    <h2>Download your tailored résumé</h2>
+    <p class="note" style="margin-top:-2px">Builds a complete, single-column, <b>ATS-friendly</b> Word document from your résumé above plus the rewrites you selected. Uses only your real facts — nothing invented.</p>
+    <div class="bar">
+      <button id="build">⬇ Build tailored résumé (.docx)</button>
+      <span id="buildstatus" class="note" style="margin:0"></span>
+    </div>
+
+    <div style="margin-top:18px">
+      <details>
+        <summary>What the tool refused to claim (honesty log)</summary>
+        <div class="honestbox" style="margin-top:10px"><ul class="clean" id="honesty"></ul></div>
+      </details>
+    </div>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const LS = { key: 'rt_key', model: 'rt_model', resume: 'rt_resume' };
+const lsGet = k => { try { return localStorage.getItem(k) || ''; } catch { return ''; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+
+// Restore saved values
+$('key').value = lsGet(LS.key);
+$('model').value = lsGet(LS.model) || 'claude-opus-5-5';
+$('resume').value = lsGet(LS.resume);
+$('key').addEventListener('change', e => lsSet(LS.key, e.target.value.trim()));
+$('model').addEventListener('change', e => lsSet(LS.model, e.target.value));
+$('resume').addEventListener('input', e => lsSet(LS.resume, e.target.value));
+
+$('clear').addEventListener('click', () => {
+  $('job').value = '';
+  $('out').style.display = 'none';
+  $('err').textContent = '';
+});
+
+const SYSTEM = `You are a careful, honest résumé-tailoring assistant. Your ONE rule above all: never invent, exaggerate, or imply anything the candidate did not actually do.
+
+You are given a candidate's résumé and a job advertisement. Your job is to help them tailor the résumé to the ad WITHOUT fabrication.
+
+Strict honesty rules:
+- You may REWORD a bullet the candidate actually wrote, using the ad's vocabulary — but the underlying fact must stay identical. "Built dashboards" -> "Developed data visualizations" is fine (same fact). "Helped with X" must NOT become "Led X". "Familiar with Y" must NOT become "Expert in Y".
+- You may REORDER and select which real experience to emphasize.
+- You may NOT add skills, tools, metrics, titles, dates, or responsibilities that are not already present in the résumé text. Do not invent numbers or percentages.
+- Every rewrite MUST be traceable to a specific line the candidate actually wrote. Quote that original line verbatim.
+- If a job requirement has no support in the résumé, put it under "gaps" — do NOT write a bullet claiming it.
+- If you were tempted to claim something but the résumé doesn't support it, record it in "honestyFlags".
+
+Return ONLY a single JSON object (no markdown, no prose before or after) with this exact shape:
+{
+  "matchScore": <integer 0-100, honest estimate of how well the real résumé fits the ad>,
+  "summary": "<2-3 sentence plain assessment of the fit and the biggest honest lever to improve it>",
+  "matchedKeywords": ["<skill/term from the ad the résumé genuinely demonstrates>", ...],
+  "missingKeywords": ["<important term from the ad NOT clearly shown in the résumé>", ...],
+  "rewrites": [
+    {
+      "relevance": "<which job requirement this maps to>",
+      "original": "<verbatim line from the candidate's résumé>",
+      "tailored": "<reworded version in the ad's language, same facts only>",
+      "sourceNote": "<one line confirming this is a faithful rewording, not a new claim>"
+    }
+  ],
+  "gaps": ["<requirement in the ad with no support in the résumé — stated as a gap, not a bullet>", ...],
+  "honestyFlags": ["<anything you deliberately did NOT claim because the résumé doesn't support it>", ...]
+}
+Keep arrays focused (the most important 5-10 items each). Output valid JSON only.`;
+
+function extractText(data) {
+  if (!data.content) return '';
+  return data.content.filter(b => b.type === 'text').map(b => b.text).join('');
+}
+
+function parseJSON(text) {
+  // model should return pure JSON, but be defensive
+  const a = text.indexOf('{'), b = text.lastIndexOf('}');
+  if (a === -1 || b === -1) throw new Error('No JSON found in response.');
+  return JSON.parse(text.slice(a, b + 1));
+}
+
+function chip(text, miss) {
+  const s = document.createElement('span');
+  s.className = 'chip' + (miss ? ' miss' : '');
+  s.textContent = text;
+  return s;
+}
+
+function render(r) {
+  // score ring
+  const score = Math.max(0, Math.min(100, r.matchScore || 0));
+  $('pct').textContent = score + '%';
+  const circ = 264;
+  $('ringfg').style.strokeDashoffset = circ - (circ * score / 100);
+  $('ringfg').style.stroke = score >= 70 ? 'var(--good)' : score >= 45 ? 'var(--warn)' : 'var(--bad)';
+  $('summary').textContent = r.summary || '';
+
+  const matched = $('matched'); matched.innerHTML = '';
+  (r.matchedKeywords || []).forEach(k => matched.appendChild(chip(k, false)));
+  if (!(r.matchedKeywords || []).length) matched.innerHTML = '<span class="note">None detected.</span>';
+
+  // rewrites with select checkboxes
+  const rw = $('rewrites'); rw.innerHTML = '';
+  (r.rewrites || []).forEach((x, i) => {
+    const d = document.createElement('div'); d.className = 'rw on';
+    const head = document.createElement('div'); head.className = 'head';
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = true;
+    cb.addEventListener('change', () => { d.classList.toggle('on', cb.checked); updateSelCount(); });
+    const relev = document.createElement('div'); relev.className = 'relev'; relev.textContent = x.relevance || 'Tailored bullet';
+    head.appendChild(cb); head.appendChild(relev);
+    const orig = document.createElement('div'); orig.className = 'orig'; orig.innerHTML = '<b>Your line:</b> ' + esc(x.original || '');
+    const neu = document.createElement('div'); neu.className = 'new';
+    const txt = document.createElement('div'); txt.className = 'txt'; txt.innerHTML = '<b>Tailored:</b> ' + esc(x.tailored || '');
+    txt.dataset.tailored = x.tailored || '';
+    const cp = document.createElement('button'); cp.className = 'copybtn'; cp.textContent = 'Copy';
+    cp.onclick = () => { navigator.clipboard.writeText(x.tailored || ''); cp.textContent = 'Copied'; setTimeout(() => cp.textContent = 'Copy', 1200); };
+    neu.appendChild(txt); neu.appendChild(cp);
+    const src = document.createElement('div'); src.className = 'src'; src.textContent = x.sourceNote || '';
+    d.appendChild(head); d.appendChild(orig); d.appendChild(neu); if (x.sourceNote) d.appendChild(src);
+    rw.appendChild(d);
+  });
+  if (!(r.rewrites || []).length) rw.innerHTML = '<span class="note">No rewrites suggested.</span>';
+  $('selbar').style.display = (r.rewrites || []).length ? 'flex' : 'none';
+  updateSelCount();
+
+  // missing keywords + gaps, each with an "I actually have this" box
+  renderAddItems($('missing'), r.missingKeywords, 'miss', 'Have this? Describe when/where you did it (real facts only):', 'Nothing major missing — nice.');
+  renderAddItems($('gaps'), r.gaps, 'gap', 'If this is actually true for you, describe it here:', 'No unaddressed gaps found.');
+
+  fillList($('honesty'), r.honestyFlags, 'Nothing was withheld.');
+
+  $('out').style.display = 'block';
+  $('out').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderAddItems(container, arr, cls, question, empty) {
+  container.innerHTML = '';
+  if (!(arr || []).length) { container.innerHTML = '<p class="note">' + empty + '</p>'; return; }
+  arr.forEach(item => {
+    const term = typeof item === 'string' ? item : (item.keyword || item.requirement || item.term || JSON.stringify(item));
+    const box = document.createElement('div'); box.className = 'additem';
+    const t = document.createElement('div'); t.className = 'term ' + cls; t.textContent = term;
+    const q = document.createElement('div'); q.className = 'q'; q.textContent = question;
+    const ta = document.createElement('textarea'); ta.className = 'addinput';
+    ta.placeholder = "Leave blank if you don't have this.";
+    ta.dataset.term = term;
+    box.appendChild(t); box.appendChild(q); box.appendChild(ta);
+    container.appendChild(box);
+  });
+}
+
+function updateSelCount() {
+  const boxes = document.querySelectorAll('#rewrites input[type=checkbox]');
+  const n = [...boxes].filter(b => b.checked).length;
+  $('selcount').textContent = n + ' of ' + boxes.length + ' selected';
+}
+
+function selectedBullets() {
+  const out = [];
+  document.querySelectorAll('#rewrites .rw').forEach(d => {
+    const cb = d.querySelector('input[type=checkbox]');
+    const txt = d.querySelector('.txt');
+    if (cb && cb.checked && txt) out.push(txt.dataset.tailored);
+  });
+  return out;
+}
+
+function fillList(ul, arr, empty) {
+  ul.innerHTML = '';
+  if (!(arr || []).length) { ul.innerHTML = '<li class="note">' + empty + '</li>'; return; }
+  arr.forEach(t => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+async function analyze() {
+  const key = $('key').value.trim();
+  const model = $('model').value;
+  const resume = $('resume').value.trim();
+  const job = $('job').value.trim();
+  const company = $('company').value.trim();
+  $('err').textContent = '';
+
+  if (!key) { $('err').textContent = 'Please enter your Claude API key.'; return false; }
+  if (!resume) { $('err').textContent = 'Please paste your résumé.'; return false; }
+  if (!job) { $('err').textContent = 'Please paste the job ad.'; return false; }
+
+  lsSet(LS.key, key);
+  lsSet(LS.model, model);
+  lsSet(LS.resume, resume);
+
+  $('go').disabled = true;
+  $('status').innerHTML = '<span class="spin"></span> Analyzing…';
+
+  const companyLine = company ? `Company: ${company}\n` : '';
+  const userMsg = `=== RÉSUMÉ ===\n${resume}\n\n=== JOB AD ===\n${companyLine}${job}\n\nTailor the résumé to this job ad following every honesty rule. Return JSON only.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 8000,
+        system: SYSTEM,
+        messages: [{ role: 'user', content: userMsg }]
+      })
+    });
+
+    if (!res.ok) {
+      let detail = '';
+      try { const j = await res.json(); detail = j.error?.message || JSON.stringify(j); } catch { detail = await res.text(); }
+      throw new Error(`API error ${res.status}: ${detail}`);
+    }
+
+    const data = await res.json();
+    if (data.stop_reason === 'refusal') {
+      throw new Error('The model declined this request. Try rephrasing or check the input text.');
+    }
+
+    const text = extractText(data);
+    const parsed = parseJSON(text);
+    render(parsed);
+    $('status').textContent = 'Done.';
+    return true;
+  } catch (e) {
+    $('err').textContent = String(e.message || e) +
+      '\n\nTip: if this says "CORS" or a network error, your key or network blocked the direct browser call. Double-check the key.';
+    $('status').textContent = '';
+    return false;
+  } finally {
+    $('go').disabled = false;
+  }
+}
+
+$('go').addEventListener('click', analyze);
+
+// Copy the tailored bullets you selected
+$('copysel').addEventListener('click', () => {
+  const bullets = selectedBullets();
+  if (!bullets.length) { $('selcount').textContent = 'Nothing selected to copy.'; return; }
+  navigator.clipboard.writeText(bullets.map(b => '• ' + b).join('\n'));
+  $('copysel').textContent = 'Copied!';
+  setTimeout(() => $('copysel').textContent = 'Copy selected bullets', 1400);
+});
+
+// Add forgotten experiences to the résumé and re-run
+$('reanalyze').addEventListener('click', async () => {
+  const adds = [];
+  document.querySelectorAll('.addinput').forEach(ta => {
+    const v = ta.value.trim();
+    if (v) adds.push({ term: ta.dataset.term, text: v });
+  });
+  if (!adds.length) {
+    $('restatus').textContent = 'Fill in at least one box above with real experience first.';
+    return;
+  }
+  const block = '\n\n--- Additional experience (added by me) ---\n' +
+    adds.map(a => `• ${a.term}: ${a.text}`).join('\n');
+  $('resume').value = $('resume').value.trim() + block;
+  lsSet(LS.resume, $('resume').value);
+  $('restatus').innerHTML = '<span class="spin"></span> Folding in ' + adds.length + ' addition' + (adds.length > 1 ? 's' : '') + ' and re-analyzing…';
+  const ok = await analyze();
+  $('restatus').textContent = ok ? 'Updated — your additions are now in your résumé above.' : '';
+});
+
+// ---- Build downloadable ATS-friendly .docx ----
+const BUILD_SYSTEM = `You assemble a complete, ATS-friendly résumé as structured JSON. ABSOLUTE RULE: use ONLY facts that appear in the candidate's résumé text and the approved tailored bullets provided. Never invent names, employers, job titles, dates, metrics, skills, certifications, or schools. If something isn't in the source, omit it — do not guess or fill placeholders.
+
+Reorganize into a clean, single-column résumé that emphasizes what matters for the job ad (most-relevant and most-recent experience first). Prefer the approved tailored wording for any bullet it covers; keep the candidate's other real bullets, lightly reworded at most (same facts, no new claims). Keep it ATS-safe: plain text only, standard section names, no tables or columns.
+
+Return ONLY a single JSON object (no markdown, no prose) with this shape:
+{
+  "name": "<candidate's name exactly as in the résumé>",
+  "contact": "<one line: email • phone • city • linkedin — include only what the résumé actually contains>",
+  "summary": "<2-3 sentence professional summary built from real experience, tuned to the job ad>",
+  "skills": ["<real skill>", ...],
+  "experience": [
+    { "title": "...", "company": "...", "location": "...", "dates": "...", "bullets": ["...", ...] }
+  ],
+  "education": [
+    { "degree": "...", "institution": "...", "location": "...", "dates": "...", "details": "..." }
+  ],
+  "additionalSections": [ { "heading": "Certifications", "items": ["...", ...] } ]
+}
+Omit any field or section you have no real data for. Output valid JSON only.`;
+
+function makeDocx(r){
+  const D = window.docx;
+  const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle } = D;
+  const children = [];
+  const heading = (t) => new Paragraph({ spacing:{before:220,after:80}, border:{bottom:{color:"999999",space:1,style:BorderStyle.SINGLE,size:6}}, children:[ new TextRun({text:String(t).toUpperCase(), bold:true, size:24}) ] });
+  const body = (t,o={}) => new TextRun(Object.assign({text:t,size:22},o));
+  if (r.name) children.push(new Paragraph({ alignment:AlignmentType.CENTER, spacing:{after:40}, children:[ new TextRun({text:r.name,bold:true,size:36}) ] }));
+  if (r.contact) children.push(new Paragraph({ alignment:AlignmentType.CENTER, spacing:{after:120}, children:[ body(r.contact) ] }));
+  if (r.summary){ children.push(heading('Summary')); children.push(new Paragraph({ spacing:{after:60}, children:[ body(r.summary) ] })); }
+  if (r.skills && r.skills.length){ children.push(heading('Skills')); children.push(new Paragraph({ children:[ body(r.skills.join('  •  ')) ] })); }
+  if (r.experience && r.experience.length){ children.push(heading('Experience'));
+    r.experience.forEach(e=>{ const left=[e.title,e.company].filter(Boolean).join(' — ');
+      if(left) children.push(new Paragraph({ spacing:{before:120}, children:[ new TextRun({text:left,bold:true,size:22}) ] }));
+      const meta=[e.location,e.dates].filter(Boolean).join('  |  ');
+      if(meta) children.push(new Paragraph({ spacing:{after:40}, children:[ new TextRun({text:meta,italics:true,size:20,color:"555555"}) ] }));
+      (e.bullets||[]).forEach(b=> children.push(new Paragraph({ spacing:{after:20}, indent:{left:220}, children:[ body('• '+b) ] })) );
+    });
+  }
+  if (r.education && r.education.length){ children.push(heading('Education'));
+    r.education.forEach(ed=>{ const l=[ed.degree,ed.institution].filter(Boolean).join(', ');
+      if(l) children.push(new Paragraph({ spacing:{before:80}, children:[ new TextRun({text:l,bold:true,size:22}) ] }));
+      const m=[ed.location,ed.dates].filter(Boolean).join('  |  ');
+      if(m) children.push(new Paragraph({ children:[ new TextRun({text:m,italics:true,size:20,color:"555555"}) ] }));
+      if(ed.details) children.push(new Paragraph({ children:[ body(ed.details) ] }));
+    });
+  }
+  (r.additionalSections||[]).forEach(sec=>{ if(!sec||!sec.heading) return; children.push(heading(sec.heading));
+    (sec.items||[]).forEach(it=> children.push(new Paragraph({ indent:{left:220}, spacing:{after:20}, children:[ body('• '+it) ] })) );
+  });
+  const doc = new Document({ styles:{ default:{ document:{ run:{ font:"Calibri", size:22 } } } }, sections:[{ properties:{ page:{ margin:{ top:720,bottom:720,left:720,right:720 } } }, children }] });
+  return Packer.toBlob(doc);
+}
+
+function downloadBlob(blob, name){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1000);
+}
+
+function safe(s){ return String(s||'').replace(/[^a-z0-9]+/gi,'_').replace(/^_+|_+$/g,'') || 'resume'; }
+
+async function buildResume(){
+  if (typeof window.docx === 'undefined'){ $('buildstatus').textContent = 'Document library is still loading — wait a second and click again.'; return; }
+  const key = $('key').value.trim(), model = $('model').value;
+  const resume = $('resume').value.trim(), job = $('job').value.trim(), company = $('company').value.trim();
+  $('err').textContent = '';
+  if (!key){ $('buildstatus').textContent = 'Enter your API key first.'; return; }
+  if (!resume || !job){ $('buildstatus').textContent = 'Need your résumé and the job ad.'; return; }
+
+  const selected = selectedBullets();
+  const selBlock = selected.length ? ('\n\n=== APPROVED TAILORED BULLETS (prefer this exact wording) ===\n' + selected.map(b=>'• '+b).join('\n')) : '';
+  const companyLine = company ? `Company: ${company}\n` : '';
+  const userMsg = `=== RÉSUMÉ (source of truth) ===\n${resume}\n\n=== JOB AD ===\n${companyLine}${job}${selBlock}\n\nAssemble the full ATS-friendly résumé as JSON using only real facts. Return JSON only.`;
+
+  $('build').disabled = true;
+  $('buildstatus').innerHTML = '<span class="spin"></span> Building your résumé…';
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{ 'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({ model, max_tokens:8000, system:BUILD_SYSTEM, messages:[{role:'user',content:userMsg}] })
+    });
+    if (!res.ok){ let d=''; try{ const j=await res.json(); d=j.error?.message||JSON.stringify(j); }catch{ d=await res.text(); } throw new Error(`API error ${res.status}: ${d}`); }
+    const data = await res.json();
+    if (data.stop_reason === 'refusal') throw new Error('The model declined this request.');
+    const r = parseJSON(extractText(data));
+    const blob = await makeDocx(r);
+    const fname = safe(r.name) + (company ? '_' + safe(company) : '') + '.docx';
+    downloadBlob(blob, fname);
+    $('buildstatus').textContent = 'Downloaded ' + fname + ' — open in Word and double-check it.';
+  } catch(e){
+    $('buildstatus').textContent = String(e.message || e);
+  } finally {
+    $('build').disabled = false;
+  }
+}
+
+$('build').addEventListener('click', buildResume);
+</script>
+</body>
+</html>
